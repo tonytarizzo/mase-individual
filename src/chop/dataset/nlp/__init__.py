@@ -31,7 +31,7 @@ from .translation import (
     TranslationDatasetWMT19_ZH_EN,
 )
 
-from .speech_recognition import LibrispeechASRDataset
+from .speech_recognition import CondensedLibrispeechASRDataset
 
 def get_nlp_dataset(
     name: str,
@@ -99,8 +99,8 @@ def get_nlp_dataset(
             dataset_cls = TranslationDatasetIWSLT2017_EN_CH
         case "wmt16_ro_en":
             dataset_cls = TranslationDatasetWMT16_RO_EN
-        case "librispeech_asr":
-            dataset_cls = LibrispeechASRDataset
+        case "nyalpatel/condensed_librispeech_asr":
+            dataset_cls = CondensedLibrispeechASRDataset
         case _:
             raise ValueError(f"Unknown dataset {name}")
 
@@ -157,7 +157,7 @@ NLP_DATASET_MAPPING = {
     "alpaca": LanguageModelingDatasetAlpaca,
     "mmlu-0-shot": LanguageModelingDatasetMMLUZeroShot,
     # "scienceqa": LanguageModelingDatasetScienceQA,
-    "librispeech_asr": LibrispeechASRDataset,
+    "nyalpatel/condensed_librispeech_asr": CondensedLibrispeechASRDataset,
 }
 
 
