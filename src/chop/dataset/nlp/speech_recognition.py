@@ -25,7 +25,7 @@ processor = Wav2Vec2Processor.from_pretrained(LIBRISPEECH_CONFIG["tokenizer_chec
 @add_dataset_info(
     name="nyalpatel/condensed_librispeech_asr",
     dataset_source="hf_datasets",
-    available_splits=("train", "validation", "test"),
+    available_splits=("train.clean.100", "train.clean.360", "train.other.500", "validation.clean", "validation.other", "test.clean", "test.other"),
     seq2seqLM=True,
     num_features=LIBRISPEECH_CONFIG["sample_rate"] * 16,
 )
