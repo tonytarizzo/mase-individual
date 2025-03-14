@@ -30,7 +30,7 @@ processor = Wav2Vec2Processor.from_pretrained(LIBRISPEECH_CONFIG["tokenizer_chec
     num_features=LIBRISPEECH_CONFIG["sample_rate"] * 16,
 )
 class CondensedLibrispeechASRDataset(Dataset):
-    def __init__(self, dataset_path: Path, split="train", config=LIBRISPEECH_CONFIG):
+    def __init__(self, dataset_path: Path, split="train.clean.100", config=LIBRISPEECH_CONFIG):
         super().__init__()
         self.split = split
         self.dataset_path = dataset_path
@@ -45,7 +45,7 @@ class CondensedLibrispeechASRDataset(Dataset):
         return self.X[idx], self.Y[idx]
 
     def prepare_data(self) -> None:
-        _preprocess_librispeech_dataset(self.dataset_path, self.config)
+        _preprocess_librispeech_dataset(self.dataset_path, self.config, split=self.split)
 
     def setup(self) -> None:
         if self.split == "train":
@@ -62,8 +62,9 @@ class CondensedLibrispeechASRDataset(Dataset):
         self.X = torch.load(self.dataset_path / x_path)
         self.Y = torch.load(self.dataset_path / y_path)
 
-def _preprocess_librispeech_dataset(save_path: Path, config: dict = LIBRISPEECH_CONFIG):
-    dataset = load_dataset("nyalpatel/condensed_librispeech_asr", split="validation")
+def _preprocess_librispeech_dataset(save_path: Path, config: dict = LIBRISPEECH_CONFIG, split="validation.clean"):
+    dataset = load_dataset("nyalpatel/condensed_librispeech_asr", split=split)
+
 
     input_values, labels = [], []
 
