@@ -7,6 +7,7 @@ from transformers import Wav2Vec2Processor
 from torch.utils.data import Dataset
 import torchaudio
 from ..utils import add_dataset_info
+import datasets as hf_datasets
 
 logger = logging.getLogger(__name__)
 
@@ -22,103 +23,51 @@ LIBRISPEECH_CONFIG = {
 
 processor = Wav2Vec2Processor.from_pretrained(LIBRISPEECH_CONFIG["tokenizer_checkpoint"])
 
-@add_dataset_info(
-    name="nyalpatel/condensed_librispeech_asr",
-    dataset_source="hf_datasets",
-    available_splits=("train.clean.100", "train.clean.360", "train.other.500", "validation.clean", "validation.other", "test.clean", "test.other"),
-    seq2seqLM=True,
-    num_features=LIBRISPEECH_CONFIG["sample_rate"] * 16,
-)
-class CondensedLibrispeechASRDataset(Dataset):
-    def __init__(self, dataset_path: Path, split="train", config=LIBRISPEECH_CONFIG):
+class SpeechRecognitionDatasetBase(Dataset):
+    info = None  # MaseDatasetInfo
+
+    def __init__(self, split: str, tokenizer, max_token_len: int, num_workers: int, load_from_cache_file: bool = True, auto_setup: bool = True):
         super().__init__()
         self.split = split
-        self.dataset_path = dataset_path
-        self.config = config
-        self.X = None
-        self.Y = None
+        self.tokenizer = tokenizer
+        self.max_token_len = max_token_len
+        self.num_workers = num_workers
+        self.load_from_cache_file = load_from_cache_file
+        self.data = None
 
-        # Map generic split names to actual dataset splits
-        if split == "train":
-            self.actual_split = "train.clean.100"
-        elif split == "validation":
-            self.actual_split = "validation.clean"
-        elif split == "test":
-            self.actual_split = "test.clean"
-        else:
-            raise ValueError(f"Split {split} is not supported.")
+        if auto_setup:
+            self.prepare_data()
+            self.setup()
+
+    def _download_dataset(self) -> hf_datasets.DatasetDict:
+        raise NotImplementedError
+
+    def prepare_data(self):
+        self._download_dataset()
+
+    def setup(self):
+        self.data = self._download_dataset()[self.split]
 
     def __len__(self):
-        return len(self.X)
+        if self.data is None:
+            raise ValueError("Dataset is not setup. Please call `dataset.prepare_data()` + `dataset.setup()` or pass `auto_setup=True` before using the dataset.")
+        return len(self.data)
 
-    def __getitem__(self, idx):
-        return self.X[idx], self.Y[idx]
+    def __getitem__(self, index):
+        if self.data is None:
+            raise ValueError("Dataset is not setup. Please call `dataset.prepare_data()` + `dataset.setup()` or pass `auto_setup=True` before using the dataset.")
+        data_row = self.data[index]
+        # Implement data processing logic here
+        return data_row
 
-    def prepare_data(self) -> None:
-        _preprocess_librispeech_dataset(self.dataset_path, self.config)
 
-    def setup(self) -> None:
-        if self.split == "train":
-            x_path, y_path = "X_train.pt", "Y_train.pt"
-        elif self.split == "validation":
-            x_path, y_path = "X_val.pt", "Y_val.pt"
-        elif self.split == "test":
-            x_path, y_path = "X_test.pt", "Y_test.pt"
-        else:
-            raise ValueError(f"Split {self.split} is not supported.")
-
-        assert (self.dataset_path / x_path).exists(), "Dataset is missing, run prepare_data() first."
-
-        self.X = torch.load(self.dataset_path / x_path)
-        self.Y = torch.load(self.dataset_path / y_path)
-
-def _preprocess_librispeech_dataset(save_path: Path, config: dict = LIBRISPEECH_CONFIG):
-    dataset = load_dataset("nyalpatel/condensed_librispeech_asr", split="validation.clean")
-
-    input_values, labels = [], []
-
-    for example in dataset:
-        waveform = example["audio"]["array"]
-        sampling_rate = example["audio"]["sampling_rate"]
-        text = example["text"]
-
-        if sampling_rate != config["sample_rate"]:
-            waveform = torchaudio.transforms.Resample(
-                orig_freq=sampling_rate, new_freq=config["sample_rate"]
-            )(torch.tensor(waveform))
-
-        if config["normalize_waveform"]:
-            waveform = (waveform - waveform.mean()) / waveform.std()
-
-        with processor.as_target_processor():
-            label = processor.tokenizer(text, return_tensors="pt").input_ids.squeeze(0)
-
-        max_length = config["max_audio_length"]
-        if waveform.shape[0] > max_length:
-            waveform = waveform[:max_length]
-        else:
-            pad = torch.zeros(max_length)
-            pad[: waveform.shape[0]] = waveform
-
-        input_values.append(pad)
-        labels.append(label)
-
-    input_values = torch.stack(input_values)
-    labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True, padding_value=-100)
-
-    X_train, X_temp, Y_train, Y_temp = train_test_split(
-        input_values, labels, test_size=config["test_size"] + config["validation_size"], random_state=42
-    )
-    X_val, X_test, Y_val, Y_test = train_test_split(
-        X_temp, Y_temp, test_size=config["test_size"] / (config["test_size"] + config["validation_size"]), random_state=42
-    )
-
-    torch.save(X_train, save_path / "X_train.pt")
-    torch.save(Y_train, save_path / "Y_train.pt")
-    torch.save(X_val, save_path / "X_val.pt")
-    torch.save(Y_val, save_path / "Y_val.pt")
-    torch.save(X_test, save_path / "X_test.pt")
-    torch.save(Y_test, save_path / "Y_test.pt")
-
-    print("✅ Condensed Librispeech dataset preprocessed and saved!")
-    
+@add_dataset_info(
+    name="condensed_librispeech_asr",
+    dataset_source="hf_datasets",
+    available_splits=("train", "validation", "test"),
+    sequence_classification=True,  # Adjust if necessary
+)
+class LibrispeechASRDataset(SpeechRecognitionDatasetBase):
+    def _download_dataset(self) -> hf_datasets.DatasetDict:
+        dataset_dict = hf_datasets.load_dataset("nyalpatel/condensed_librispeech_asr", split=self.split)
+        return dataset_dict
