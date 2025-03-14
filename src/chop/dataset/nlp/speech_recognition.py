@@ -38,6 +38,16 @@ class CondensedLibrispeechASRDataset(Dataset):
         self.X = None
         self.Y = None
 
+        # Map generic split names to actual dataset splits
+        if split == "train":
+            self.actual_split = "train.clean.100"
+        elif split == "validation":
+            self.actual_split = "validation.clean"
+        elif split == "test":
+            self.actual_split = "test.clean"
+        else:
+            raise ValueError(f"Split {split} is not supported.")
+
     def __len__(self):
         return len(self.X)
 
@@ -63,7 +73,7 @@ class CondensedLibrispeechASRDataset(Dataset):
         self.Y = torch.load(self.dataset_path / y_path)
 
 def _preprocess_librispeech_dataset(save_path: Path, config: dict = LIBRISPEECH_CONFIG):
-    dataset = load_dataset("nyalpatel/condensed_librispeech_asr", split="validation")
+    dataset = load_dataset("nyalpatel/condensed_librispeech_asr", split="validation.clean")
 
     input_values, labels = [], []
 
