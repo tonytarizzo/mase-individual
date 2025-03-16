@@ -151,6 +151,12 @@ from .gqa import (
     GroupedQueryAttentionInteger,
 )
 
+# Import FlexRound modules
+from .flexround import (
+    LinearFlexRound,
+    Conv2dFlexRound,
+)
+
 quantized_module_map = {
     "conv1d_block_minifloat": Conv1dBlockMinifloat,
     "conv1d_integer": Conv1dInteger,
@@ -173,6 +179,7 @@ quantized_module_map = {
     "conv2d_block_fp": Conv2dBlockFP,
     "conv2d_lutnet": Conv2dLUT,
     "conv2d_logicnets": Conv2DLogicNets,
+    "conv2d_flexround": Conv2dFlexRound,
     "linear_block_minifloat": LinearBlockMinifloat,
     "linear_integer": LinearInteger,
     "linear_fixed": LinearInteger,
@@ -187,6 +194,7 @@ quantized_module_map = {
     "linear_ternary": LinearTernary,
     "linear_lutnet": LinearLUT,
     "linear_logicnets": LinearLogicNets,
+    "linear_flexround": LinearFlexRound,
     "adaptive_avg_pool2d_integer": AdaptiveAvgPool2dInteger,
     "avg_pool2d_integer": AvgPool2dInteger,
     "avg_pool2d_binary": AvgPool2dBinary,

@@ -1,4 +1,3 @@
-
 import torch
 
 from chop.tools import get_logger
@@ -6,6 +5,8 @@ from chop.tools import get_logger
 from chop.passes.graph.transforms.pruning.load import load_activation_prune_config, load_weight_prune_config
 from chop.passes.graph.transforms.pruning.pruning_methods import weight_criteria_map, activation_criteria_map
 from chop.passes.graph.transforms.pruning.sparse_parameterization import FakeSparseWeight, FakeStructuredSparseWeight
+from .hwpq import HWPQParameterization
+from .flexround import FlexRoundParameterization
 
 logger = get_logger(__name__)
 logger.setLevel("INFO")
@@ -29,7 +30,37 @@ def get_weight_hook(name, info, named_info, w_config: dict):
     value = named_info["value"]
     w_sparsity = named_info["weight_sparsity"]
     register_parameter_name = "weight"
-    parameterization = FakeSparseWeight(w_rank_fn(value, info, w_sparsity))
+
+    # Add structured_sparsity flag if using HWPQ or FlexRound
+    if w_config["method"] in ["hwpq", "flexround"]:
+        named_info["structured_sparsity"] = w_config.get("structured_sparsity", True)
+        
+    # Add FlexRound specific parameters if needed
+    if w_config["method"] == "flexround":
+        named_info["alpha"] = w_config.get("alpha", 0.5)
+        named_info["beta"] = w_config.get("beta", 0.25)
+        named_info["bit_width"] = w_config.get("bit_width", 8)
+        named_info["frac_width"] = w_config.get("frac_width", 4)
+
+    if w_config["scope"] == "global":
+        param_mask = w_rank_fn(value, info, w_sparsity, node_name=name)
+    else:
+        param_mask = w_rank_fn(value, named_info, w_sparsity)
+
+    # Use special parameterization for methods that handle both pruning and quantization
+    if w_config["method"] == "hwpq":
+        parameterization = HWPQParameterization(param_mask)
+    elif w_config["method"] == "flexround":
+        parameterization = FlexRoundParameterization(
+            param_mask,
+            alpha=named_info.get("alpha", 0.5), 
+            beta=named_info.get("beta", 0.25),
+            bit_width=named_info.get("bit_width", 8), 
+            frac_width=named_info.get("frac_width", 4)
+        )
+    else:
+        parameterization = FakeSparseWeight(param_mask)
+    
     return (register_parameter_name, parameterization)
 
 
