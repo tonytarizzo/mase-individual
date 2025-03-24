@@ -1,3 +1,3 @@
 from .quantize import QUANTIZEABLE_OP, quantize_transform_pass
 from .summary import summarize_quantization_analysis_pass
-from .flexround import FlexRoundQuantizer, FlexRoundQuantizedLayer, quantize_model_with_flexround, apply_flexround_transform
+from .flexround import FlexRoundQuantizer, apply_flexround_transform

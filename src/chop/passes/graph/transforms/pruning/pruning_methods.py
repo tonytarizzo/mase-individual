@@ -1,5 +1,6 @@
 from chop.passes.graph.transforms.pruning.hwpq import hwpq_pruning_only, HWPQParameterization
 
+
 # Ranking criteria for pruning weights
 # NOTE: For now, we assume that all ranking functions take in two positional arguments
 # (a tensor along with a sparsity target) and return an appropriately computed mask. All
@@ -261,7 +262,8 @@ weight_criteria_map = {
             "random": random,
             "l1-norm": l1,
             "movement": movement,
-            "hwpq": hwpq_pruning_only,  # Add the HWPQ method here
+            "hwpq": hwpq_pruning_only,
+
         }
     },
     "global": {
@@ -269,7 +271,7 @@ weight_criteria_map = {
             "random": random,
             "l1-norm": global_weight_l1,
             "movement": global_weight_movement, 
-            # We're not implementing global HWPQ for now
+            # We're not implementing global HWPQ or FlexRound for now
         }
     },
 }
